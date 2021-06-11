@@ -1,6 +1,6 @@
 module RelayUtils
 
-using SpkCore, SimpleStats
+using SpkCore
 using Statistics, Distances, Random, StatsBase
 
 const TS = Vector{Float64}
@@ -162,6 +162,20 @@ function precision_recall(y::AbstractVector{<:Real}, yp::AbstractVector{<:Real})
     return trapz(rec, prec), acc
 end
 # ============================================================================ #
+@enum TailType Both Left Right
+# correction comes from: Phipson & Smyth 2010
+function calc_pvalue(obs::Real, dist::Vector{<:Real}, tail::TailType, correction::Bool=false)
+    n = length(dist) + correction
+    if tail == Both
+        p = (sum(x -> abs(x) >= abs(obs), dist) + correction) / n
+    elseif tail == Left
+        p = (sum(x -> obs >= x, dist) + correction) / n
+    else
+        p = (sum(x -> obs <= x, dist) + correction) / n
+    end
+    return p
+end
+# ============================================================================ #
 function permute_jensen_shannon(y::AbstractVector{<:Real}, yp::AbstractVector{<:Real}, niter::Integer=1000, nbin::Integer=100)
 
     stat = jensen_shannon(y, yp, nbin)
@@ -173,7 +187,7 @@ function permute_jensen_shannon(y::AbstractVector{<:Real}, yp::AbstractVector{<:
         d[k] = jensen_shannon(ys, yp, nbin)
     end
 
-    p = SimpleStats.calc_pvalue(stat, d, Right, true)
+    p = calc_pvalue(stat, d, Right, true)
 
     return stat, p
 end

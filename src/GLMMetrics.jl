@@ -1,6 +1,6 @@
 module GLMMetrics
 
-using Statistics, SimpleStats, LinearAlgebra
+using Statistics, LinearAlgebra
 import Statistics
 
 using ..RelayUtils
@@ -162,7 +162,6 @@ RRI(nfold::Integer) = RRI(fill(NaN, nfold))
 function eval_and_store!(r::RRI, y::AbstractVector{<:Real}, yp::AbstractVector{<:Real}, k::Integer)
     # divide by log(2) so our units are bits-per-event
     r.x[k] = (binomial_lli(y, yp) - binomial_lli(y)) / length(y) / log(2)
-    # r.x[k] = (binomial_lli(y, yp) - binomial_lli(y)) / sum(y) / log(2)
     return r
 end
 

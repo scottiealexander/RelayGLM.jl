@@ -2,10 +2,6 @@ module GLMBasis
 
 using LinearAlgebra
 
-using LibPath
-
-const LIBPATH = @libpath("libspikefilter", joinpath(@__DIR__, "lib"))
-
 export make_stim_basis, make_spike_basis, spikefilter
 # ============================================================================ #
 @inline stretchx(x::Real) = log(x + 1e-20)

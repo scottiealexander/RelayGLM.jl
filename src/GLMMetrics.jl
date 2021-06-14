@@ -14,6 +14,7 @@ abstract type PerformanceMetric end
 
 @inline better_than(::Type{<:PerformanceMetric}, x::Real, y::Real) = x > y
 @inline worst_value(::Type{<:PerformanceMetric}) = -Inf
+@inline nanmean(x::AbstractVector{<:Real}) = mean(filter(!isnan, x))
 # ============================================================================ #
 function findbest(p::T) where T<:PerformanceMetric
 

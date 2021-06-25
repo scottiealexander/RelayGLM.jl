@@ -17,7 +17,6 @@ abstract type PerformanceMetric end
 @inline nanmean(x::AbstractVector{<:Real}) = mean(filter(!isnan, x))
 # ============================================================================ #
 function findbest(p::T) where T<:PerformanceMetric
-
     best = worst_value(T)
     kb = 1
     for k in eachindex(p.x)
@@ -28,7 +27,6 @@ function findbest(p::T) where T<:PerformanceMetric
     end
     return best, kb
 end
-
 # ============================================================================ #
 struct ROCArea <: PerformanceMetric
     x::Vector{Float64}

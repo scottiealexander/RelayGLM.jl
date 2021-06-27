@@ -3,6 +3,8 @@ module RelayISI
 using SpkCore
 using Statistics, Random, StatsBase, Optim, ImageFiltering
 
+using LoopVectorization
+
 using ..RelayUtils, ..GLMMetrics, ..GLMFit.Partitions
 import ..PredictorSet, ..Predictor, ..GLM, ..cross_validate, ..NullPrior,
        ..Binomial, ..Logistic, ..wasrelayed
@@ -33,11 +35,9 @@ function get_eff(isi::Vector{Float64}, status::AbstractVector{<:Real}, kuse::Abs
         all = fit(Histogram, isi_use, edges)
         rel = fit(Histogram, isi_use[krel], edges)
 
-        eff = zeros(length(all.weights))
-        @inbounds for k in eachindex(all.weights)
-            if all.weights[k] > 0
-                eff[k] = rel.weights[k] / all.weights[k]
-            end
+        eff = Vector{Float64}(undef, length(all.weights))
+        @turbo thread=8 for k in eachindex(all.weights)
+            eff[k] = all.weights[k] > 0 ? rel.weights[k] / all.weights[k] : 0.0
         end
 
         if sigma > 0.0
@@ -47,10 +47,8 @@ function get_eff(isi::Vector{Float64}, status::AbstractVector{<:Real}, kuse::Abs
         end
 
         # ensure [0,1]
-        @inbounds for k in eachindex(out)
-            if out[k] < 0.0
-                out[k] = 0.0
-            end
+        @turbo thread=8 for k in eachindex(out)
+            out[k] = out[k] < 0.0 ? 0.0 : out[k]
         end
 
     return edges, out
@@ -113,21 +111,19 @@ function isi_cross_validate(::Type{T}, ret::AbstractVector{<:Real}, lgn::Abstrac
 end
 # ============================================================================ #
 function logistic!(x::AbstractVector{<:Real})
-    x .= 1.0 ./ (1.0 .+ exp.(.-x))
+    @turbo thread=8 for k in eachindex(x)
+        x[k] = 1.0 / (1.0 + exp(-x[k]))
+    end
     return x
 end
 # ============================================================================ #
 function binomial_nlli!(yp::Vector{<:Real}, status::Vector{<:Real})
-    Threads.@threads for k in eachindex(status)
-        @inbounds begin
-            if status[k] > 0
-                yp[k] = log(yp[k] + eps())
-            else
-                yp[k] = log(1.0 - (yp[k] - eps()))
-            end
-        end
+    p = 0.0
+    @turbo thread=8 for k in eachindex(status)
+        yp[k] = status[k] > 0 ? log(yp[k] + eps()) : log(1.0 - (yp[k] - eps()))
+        p += yp[k]
     end
-    return -sum(yp)
+    return -p
 end
 # ============================================================================ #
 function scale_ef(edges::AbstractVector{<:Real}, ef::Vector{Float64}, isi::Vector{Float64}, status::AbstractVector{<:Real}, isibin::Real)

@@ -7,7 +7,7 @@ export partition, ballanced_partition, Partitioner, IndexPartitioner,
 
 abstract type AbstractPartitioner end
 
-struct Partitioner{T<:AbstractMatrix{Float64},L<:AbstractVector{Float64}} <: AbstractPartitioner
+struct Partitioner{T<:AbstractMatrix{Float64},L<:AbstractVector{Bool}} <: AbstractPartitioner
     x::T
     y::L
     rows::Vector{Vector{Int}}
@@ -16,8 +16,8 @@ end
 struct Partition
     xtrain::Matrix{Float64}
     xtest::Matrix{Float64}
-    ytrain::Vector{Float64}
-    ytest::Vector{Float64}
+    ytrain::Vector{Bool}
+    ytest::Vector{Bool}
 end
 
 struct IndexPartitioner <: AbstractPartitioner

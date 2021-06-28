@@ -1,7 +1,6 @@
 module GLMMetrics
 
 using Statistics, LinearAlgebra
-import Statistics
 
 using ..RelayUtils
 
@@ -87,27 +86,6 @@ function Base.copy!(dst::JSDivergence, src::JSDivergence)
 end
 key_name(::Type{JSDivergence}) = "jsd"
 # ============================================================================ #
-function binomial_lli(y::AbstractVector{<:Real}, yp::AbstractVector{<:Real})
-    sm = 0.0
-    @inbounds for k in eachindex(y)
-        if y[k] > 0.0
-            sm += log(yp[k] + eps())
-        else
-            sm += log(1.0 - (yp[k] - eps()))
-        end
-    end
-    return sm
-end
-function binomial_lli(y::AbstractVector{<:Real})
-    k = sum(y)
-    n = length(y)
-
-    # we assume mean efficacy is in (0,1)
-    efficacy = k/n
-
-    return k * log(efficacy) + (n-k) * log(1.0-efficacy)
-end
-# ============================================================================ #
 struct BinomialLikelihood <: PerformanceMetric
     x::Vector{Float64}
 end
@@ -119,7 +97,7 @@ BinomialLikelihood(nfold::Integer) = BinomialLikelihood(fill(NaN, nfold))
 
 function eval_and_store!(r::BinomialLikelihood, y::AbstractVector{<:Real}, yp::AbstractVector{<:Real}, k::Integer)
     # r.x[k] = -(dot(log.(yp), y) + dot(1.0 .- y, log.(1.0 .- yp)))
-    r.x[k] = -binomial_lli(y, yp) / length(y)
+    r.x[k] = -RelayUtils.binomial_lli_turbo(y, yp) / length(y)
     return r
 end
 
@@ -136,8 +114,8 @@ end
 RelativeBinomialLikelihood(nfold::Integer) = RelativeBinomialLikelihood(fill(NaN, nfold))
 
 # for relative likelihood, larger values are better
-function eval_and_store!(r::RelativeBinomialLikelihood, y::AbstractVector{<:Real}, yp::AbstractVector{<:Real}, k::Integer)
-    r.x[k] = (binomial_nlli(y, yp) - binomial_nlli(y)) / length(y) #null
+function eval_and_store!(r::RelativeBinomialLikelihood, y::Vector{Bool}, yp::Vector{Float64}, k::Integer)
+    r.x[k] = (RelayUtils.binomial_lli_turbo(yp, y) - RelayUtils.binomial_lli(y)) / length(y) #null
     return r
 end
 
@@ -158,9 +136,9 @@ end
 RRI(nfold::Integer) = RRI(fill(NaN, nfold))
 
 # for RRI, larger values are better
-function eval_and_store!(r::RRI, y::AbstractVector{<:Real}, yp::AbstractVector{<:Real}, k::Integer)
+function eval_and_store!(r::RRI, y::Vector{Bool}, yp::Vector{Float64}, k::Integer)
     # divide by log(2) so our units are bits-per-event
-    r.x[k] = (binomial_lli(y, yp) - binomial_lli(y)) / length(y) / log(2)
+    r.x[k] = (RelayUtils.binomial_lli_turbo(yp, y) - RelayUtils.binomial_lli(y)) / length(y) / log(2)
     return r
 end
 

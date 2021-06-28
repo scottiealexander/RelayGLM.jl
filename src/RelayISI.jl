@@ -110,20 +110,27 @@ function isi_cross_validate(::Type{T}, ret::AbstractVector{<:Real}, lgn::Abstrac
     return out, sig, isimx
 end
 # ============================================================================ #
+# NOTE: we are NOT using the turbo functions from RelayUtils as they do not work
+# with ForwardDiff.Dual types [which we need to get the objective gradient from
+# ForwardDiff (via Optim) in scale_ef()]; however, Dual numbers work just fine
+# with Threads (obviously...)
 function logistic!(x::AbstractVector{<:Real})
-    @turbo thread=8 for k in eachindex(x)
-        x[k] = 1.0 / (1.0 + exp(-x[k]))
+    Threads.@threads for k in eachindex(x)
+        @inbounds x[k] = 1.0 / (1.0 + exp(-x[k]))
     end
     return x
 end
 # ============================================================================ #
-function binomial_nlli!(yp::Vector{<:Real}, status::Vector{<:Real})
-    p = 0.0
-    @turbo thread=8 for k in eachindex(status)
-        yp[k] = status[k] > 0 ? log(yp[k] + eps()) : log(1.0 - (yp[k] - eps()))
-        p += yp[k]
+# NOTE: this is combined logistic + NEGATIVE likelihood calculation specifically
+# for scale_ef() below
+function binomial_logistic_nlli!(x::Vector{<:Real}, status::Vector{<:Real})
+    Threads.@threads for k in eachindex(status)
+        @inbounds begin
+            tmp = 1.0 / (1.0 + exp(-x[k]))
+            x[k] = status[k] > 0 ? log(tmp + eps()) : log(1.0 - (tmp - eps()))
+        end
     end
-    return -p
+    return -sum(x)
 end
 # ============================================================================ #
 function scale_ef(edges::AbstractVector{<:Real}, ef::Vector{Float64}, isi::Vector{Float64}, status::AbstractVector{<:Real}, isibin::Real)
@@ -137,9 +144,7 @@ function scale_ef(edges::AbstractVector{<:Real}, ef::Vector{Float64}, isi::Vecto
             Vector{T}(undef, N)
         end::Vector{T}
 
-        logistic!(predict!(yp, edges, p[1] .+ ef .* p[2], isi))
-
-        return binomial_nlli!(yp, status)
+        return binomial_logistic_nlli!(predict!(yp, edges, p[1] .+ ef .* p[2], isi), status)
     end
 
     mn = mean(ef)
@@ -149,7 +154,7 @@ function scale_ef(edges::AbstractVector{<:Real}, ef::Vector{Float64}, isi::Vecto
     return res.minimizer[1] .+ ef .* res.minimizer[2]
 end
 # ============================================================================ #
-function isi_model(::Type{T}, isi::AbstractVector{<:Real}, status::AbstractVector{<:Real},
+function isi_model(::Type{T}, isi::AbstractVector{<:Real}, status::Vector{Bool},
     sigma::Real, isibin::Real, isimax::Real, nfold::Integer, shfl::Bool) where T <: PerformanceMetric
 
     res = T(nfold)

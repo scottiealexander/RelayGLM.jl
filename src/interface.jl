@@ -89,7 +89,7 @@ abstract type AbstractGLM end
 
 struct GLM <: AbstractGLM #{T<:AbstractPrior,R<:Real,L<:Real}
     predictors::PredictorSet
-    response::Vector{Float64}
+    response::Vector{Bool}
     # lambda::Vector{Vector{L}}
 end
 struct RegGLM{T<:AbstractPrior} <: AbstractGLM
@@ -103,7 +103,7 @@ lambda = [1:10] # -> apply lambda to all filters
 # function GLM(ps::PredictorSet, y::Vector{<:Real})
 #     return GLM(ps, y)
 # end
-function GLM(ps::PredictorSet, y::Vector{<:Real}, prior::Type{P}, lambda::VecVec{N}) where {P<:AbstractPrior,N<:Real}
+function GLM(ps::PredictorSet, y::Vector{Bool}, prior::Type{P}, lambda::VecVec{N}) where {P<:AbstractPrior,N<:Real}
     return RegGLM{P}(GLM(ps, y), map(collect, lambda))
 end
 function GLM(glm::GLM)

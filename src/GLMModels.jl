@@ -2,6 +2,8 @@ module GLMModels
 
 using SparseArrays, LinearAlgebra, Statistics
 
+using ..RelayUtils
+
 export Poisson, Binomial, Gaussian, Identity, Exponential, Logistic,
     nobs, nvar, activate!, get_objective, hessian, init_glm, predictors, response,
     bin_size
@@ -27,7 +29,7 @@ abstract type AbstractGLM{D<:Distribution, A<:ActivationFunction} end
 # ---------------------------------------------------------------------------- #
 struct GLM{D,A} <: AbstractGLM{D,A}
     x::Matrix{Float64}
-    y::Vector{Float64}
+    y::Vector{Bool}
     r::Vector{Float64}
     dr::Vector{Float64}
     bin_size::Float64
@@ -39,31 +41,31 @@ struct RegularizedGLM{D,A,P<:AbstractMatrix} <: AbstractGLM{D,A}
 end
 # ---------------------------------------------------------------------------- #
 # main GLM constructor
-function GLM(::Type{D}, ::Type{A}, x::Matrix{<:Real}, y::Vector{Float64}, bin_size::Real) where {D,A}
+function GLM(::Type{D}, ::Type{A}, x::Matrix{<:Real}, y::Vector{Bool}, bin_size::Real) where {D,A}
     return GLM{D,A}(x, y, zeros(Float64, length(y)), zeros(Float64, length(y)), bin_size)
 end
 # ---------------------------------------------------------------------------- #
 # GLM copy constructor for easy partitioning
-function GLM(glm::GLM{D,A}, x::Matrix{<:Real}, y::Vector{Float64}, bin_size::Real) where {D,A}
+function GLM(glm::GLM{D,A}, x::Matrix{<:Real}, y::Vector{Bool}, bin_size::Real) where {D,A}
     return GLM(D, A, x, y, bin_size)
 end
 # ---------------------------------------------------------------------------- #
 # construct a GLM from a RegularizedGLM, for use when training utilizes
 # regularization but testing does not (which is always the case)
-function GLM(rg::RegularizedGLM, x::Matrix{<:Real}, y::Vector{Float64}, bin_size::Real)
+function GLM(rg::RegularizedGLM, x::Matrix{<:Real}, y::Vector{Bool}, bin_size::Real)
     return GLM(rg.glm, x, y, bin_size)
 end
 # ---------------------------------------------------------------------------- #
-function RegularizedGLM(::Type{D}, ::Type{A}, x::Matrix{<:Real}, y::Vector{Float64}, bin_size::Real, pr::P) where {D,A,P}
+function RegularizedGLM(::Type{D}, ::Type{A}, x::Matrix{<:Real}, y::Vector{Bool}, bin_size::Real, pr::P) where {D,A,P}
     return RegularizedGLM{D,A,P}(GLM(D, A, x, y, bin_size), pr)
 end
 # ---------------------------------------------------------------------------- #
 # alternate copy constructors for convienence use in GLMFit.cross_validate
-function init_glm(glm::GLM{D,A}, x::Matrix{<:Real}, y::Vector{Float64}, bin_size::Real) where {D,A}
+function init_glm(glm::GLM{D,A}, x::Matrix{<:Real}, y::Vector{Bool}, bin_size::Real) where {D,A}
     return GLM(D, A, x, y, bin_size)
 end
 # ---------------------------------------------------------------------------- #
-function init_glm(glm::RegularizedGLM{D,A}, x::Matrix{<:Real}, y::Vector{Float64}, bin_size::Real) where {D,A}
+function init_glm(glm::RegularizedGLM{D,A}, x::Matrix{<:Real}, y::Vector{Bool}, bin_size::Real) where {D,A}
     return RegularizedGLM(D, A, x, y, bin_size, glm.prior)
 end
 # ============================================================================ #
@@ -270,31 +272,6 @@ end
     return g
 end
 # ---------------------------------------------------------------------------- #
-@inline function binomial_nlli(y::Vector{<:Real}, r::Vector{<:Real})
-    # less efficent procedure that we implement below
-    # return -(dot(log.(r), d.y) + dot(1.0 .- d.y, log.(1.0 .- r)))
-
-    sm = 0.0
-    @inbounds for k in eachindex(r)
-        if y[k] > 0.0
-            # positive events
-            sm += log(r[k])
-        else
-            # NOTE: there are some cases where d.x * p yeilds large enough
-            # values (> ~36.86...) that logistic(d.x * p) will yield vaules of
-            # exactly 1.0 (due to round off error), so we subtract eps() to
-            # avoid getting Inf from log(1.0 - 1.0), in cases where the output
-            # of the activation function is 0 we're still "ok" as we just get
-            # log(1 + eps())
-
-            # negative events
-            sm += log(1.0 - (r[k] - eps()))
-        end
-    end
-
-    return -sm
-end
-# ---------------------------------------------------------------------------- #
 # sources:
 # * https://web.stanford.edu/class/archive/cs/cs109/cs109.1178/lectureHandouts/220-logistic-regression.pdf
 # * http://www.stat.cmu.edu/~cshalizi/uADA/12/lectures/ch12.pdf
@@ -309,7 +286,7 @@ function nlli!(d::GLM{Binomial,L}, f::ObjFlag, p::Vector{Float64}, g::StorageVec
     # Optim requested gradient only, don't bother calculating full objective
     f == nothing && return +Inf
 
-    return binomial_nlli(d.y, r)
+    return -RelayUtils.binomial_lli_turbo(r, d.y)
 end
 # ---------------------------------------------------------------------------- #
 function nlli!(d::GLM{Binomial,Logistic}, f::ObjFlag, p::Vector{Float64}, g::StorageVec, h::StorageMat)
@@ -331,13 +308,11 @@ function nlli!(d::GLM{Binomial,Logistic}, f::ObjFlag, p::Vector{Float64}, g::Sto
     # Optim requested gradient only, don't bother calculating full objective
     f == nothing && return +Inf
 
-    return binomial_nlli(d.y, r)
+    return -RelayUtils.binomial_lli_turbo(r, d.y)
 end
 # ============================================================================ #
 function null_nlli(d::GLM{Binomial,L}) where L <: ActivationFunction
-    k = sum(d.y)
-    yp = k / length(d.y)
-    return -(k * log(yp) + (length(d.y) - k) * log(1.0 - yp))
+    return -RelayUtils.binomial_lli(d.y)
 
     # if we normalize by the number of spikes (length(d.y)) we get:
     # ef = sum(d.y) / length(y)
@@ -357,13 +332,13 @@ end
 # ============================================================================ #
 # see also: https://web.stanford.edu/class/archive/cs/cs109/cs109.1178/lectureHandouts/220-logistic-regression.pdf slide 5
 function activate!(::Type{Logistic}, xp::Vector{Float64}, dr::Vector{Float64}, bin_size::Real)
-    # logistic function, f(xp)
-    xp .= 1.0 ./ (1.0 .+ exp.(.-xp))
+    # # logistic function, f(xp)
+    # xp .= 1.0 ./ (1.0 .+ exp.(.-xp))
+    #
+    # # logistic derivitive, f'(xp))
+    # dr .= xp .* (1.0 .- xp)
 
-    # logistic derivitive, f'(xp))
-    dr .= xp .* (1.0 .- xp)
-
-    return xp, dr
+    return RelayUtils.logistic_derivative_turbo!(xp, dr)
 end
 # ============================================================================ #
 function hessian(d::GLM{Poisson,Exponential}, p::Vector)

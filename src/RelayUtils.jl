@@ -241,14 +241,14 @@ function ts2bin(::Type{T}, ts::Vector{Float64}, bs::Real=0.001) where T<:Real
 end
 # ============================================================================ #
 function logistic_turbo!(x::Vector{Float64})
-    @turbo thread=8 for k in eachindex(x)
+    @turbo for k in eachindex(x)
         @inbounds x[k] = 1.0 / (1.0 + exp(-x[k]))
     end
     return x
 end
 # ============================================================================ #
 function logistic_derivative_turbo!(x::Vector{Float64}, dx::Vector{Float64})
-    @turbo thread=8 for k in eachindex(x)
+    @turbo for k in eachindex(x)
         tmp = 1.0 / (1.0 + exp(-x[k]))
         dx[k] = tmp * (1.0 - tmp)
         x[k] = tmp
@@ -268,7 +268,7 @@ end
 # ============================================================================ #
 function binomial_lli_turbo(yp::Vector{Float64}, status::Vector{Bool})
     p = 0.0
-    @turbo thread=8 for k in eachindex(status)
+    @turbo for k in eachindex(status)
         p += status[k] ? log(yp[k] + eps()) : log(1.0 - (yp[k] - eps()))
     end
     return p
@@ -276,7 +276,7 @@ end
 # ============================================================================ #
 function logistic_binomial_turbo(yp::Vector{Float64}, status::Vector{Bool})
     p = 0.0
-    @turbo thread=8 for k in eachindex(status)
+    @turbo for k in eachindex(status)
         tmp = 1.0 / (1.0 + exp(-yp[k]))
         p += status[k] ? log(tmp + eps()) : log(1.0 - (tmp - eps()))
     end

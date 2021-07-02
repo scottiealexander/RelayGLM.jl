@@ -147,9 +147,13 @@ function scale_ef(edges::AbstractVector{<:Real}, ef::Vector{Float64}, isi::Vecto
         return binomial_logistic_nlli!(predict!(yp, edges, p[1] .+ ef .* p[2], isi), status)
     end
 
-    mn = mean(ef)
-    mx = maximum(ef)
-    res = optimize(objective, [-mn, 1.0/(mx - mn)], LBFGS(); autodiff=:forward)
+    x0 = [0.0, 1.0]
+
+    # mn = mean(ef)
+    # mx = maximum(ef)
+    # x0 = [-mn, 1.0/(mx - mn)]
+
+    res = optimize(objective, x0, LBFGS(); autodiff=:forward)
 
     return res.minimizer[1] .+ ef .* res.minimizer[2]
 end

@@ -41,7 +41,7 @@ end
 function cross_validate(::Type{T}, d::RegularizedGLM{D,A}, pr::AbstractPrior, x0::Vector{<:Real},
     nfold::Integer, shlf::Bool=false) where {D,A,T<:PerformanceMetric}
 
-    result = CrossValResult(T(nfold), nvar(d), nlambda(pr))
+    result = CrossValResult(T(nfold, nobs(d)), nvar(d), nlambda(pr))
 
     kmin = 1
     # pm = allocate_prior(pr)

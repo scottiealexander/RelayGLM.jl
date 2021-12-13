@@ -134,13 +134,15 @@ struct RRI <: PerformanceMetric
     x::Vector{Float64}
     pred::Vector{Float64}
 end
-RRI(nfold::Integer, nret::Integer) = RRI(fill(NaN, nfold), fill(NaN, nret))
+RRI(nfold::Integer, nret::Integer=0) = RRI(fill(NaN, nfold), fill(NaN, nret))
 
 # for RRI, larger values are better
-function eval_and_store!(r::RRI, y::Vector{Bool}, yp::Vector{Float64}, k::Integer, kspk::Vector{<:Integer})
+function eval_and_store!(r::RRI, y::Vector{Bool}, yp::Vector{Float64}, k::Integer, kspk::Vector{<:Integer}=Int[])
     # divide by log(2) so our units are bits-per-event
     r.x[k] = (RelayUtils.binomial_lli_turbo(yp, y) - RelayUtils.binomial_lli(y)) / length(y) / log(2)
-    r.pred[kspk] .= yp
+    if !isempty(kspk)
+        r.pred[kspk] .= yp
+    end
     return r
 end
 

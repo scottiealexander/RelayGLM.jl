@@ -132,13 +132,15 @@ key_name(::Type{RelativeBinomialLikelihood}) = "rbili"
 # c.f. Williamson et al. (2015) PLOS Comp Bio, eq. 17, 20, and 59
 struct RRI <: PerformanceMetric
     x::Vector{Float64}
+    pred::Vector{Float64}
 end
-RRI(nfold::Integer) = RRI(fill(NaN, nfold))
+RRI(nfold::Integer, nret::Integer) = RRI(fill(NaN, nfold), fill(NaN, nret))
 
 # for RRI, larger values are better
-function eval_and_store!(r::RRI, y::Vector{Bool}, yp::Vector{Float64}, k::Integer)
+function eval_and_store!(r::RRI, y::Vector{Bool}, yp::Vector{Float64}, k::Integer, kspk::Vector{<:Inter})
     # divide by log(2) so our units are bits-per-event
     r.x[k] = (RelayUtils.binomial_lli_turbo(yp, y) - RelayUtils.binomial_lli(y)) / length(y) / log(2)
+    r.pred[kspk] .= yp
     return r
 end
 

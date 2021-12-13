@@ -37,21 +37,6 @@ end
 @inline nlli(x::CrossValResult) = x.li
 @inline converged(x::CrossValResult) = x.nconvg == x.ntotal
 @inline lambda(x::CrossValResult) = x.lambda
-# # ============================================================================ #
-# function cross_validate(::Type{T}, d::GLM{D,A}, x0::Vector{<:Real},
-#     nfold::Integer, shfl::Bool=false) where {D,A,T<:PerformanceMetric}
-#
-#     if length(pr) > 1
-#         result = cross_validate_prior(T, d, pr, x0, nfold, shfl)
-#         # println("Using lamdba = $(result.lambda)")
-#     else
-#         # println("Using lambda = $(get_lambda(pr, 1))")
-#         pr0 = get_prior!(allocate_prior(pr), pr, 1)
-#         result = cross_validate(T, d, pr0, x0, nfold, shfl)
-#     end
-#
-#     return result
-# end
 # ============================================================================ #
 function cross_validate(::Type{T}, d::RegularizedGLM{D,A}, pr::AbstractPrior, x0::Vector{<:Real},
     nfold::Integer, shlf::Bool=false) where {D,A,T<:PerformanceMetric}
@@ -92,7 +77,6 @@ function cross_validate(::Type{T}, d::GLMType, x0::Vector{<:Real},
 
     coef = zeros(length(x0))
     li = 0.0
-    jsp = 0.0
     ntotal = 0
     nconvg = 0
 

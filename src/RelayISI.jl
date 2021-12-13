@@ -161,7 +161,7 @@ end
 function isi_model(::Type{T}, isi::AbstractVector{<:Real}, status::Vector{Bool},
     sigma::Real, isibin::Real, isimax::Real, nfold::Integer, shfl::Bool) where T <: PerformanceMetric
 
-    res = T(nfold)
+    res = T(nfold, length(isi))
 
     k = 1
     for p in ballanced_partition(IndexPartitioner, isi, status, nfold, shfl)
@@ -173,7 +173,7 @@ function isi_model(::Type{T}, isi::AbstractVector{<:Real}, status::Vector{Bool},
 
         pred = logistic!(predict(edges, ef, isi[idxtest]))
 
-        eval_and_store!(res, status[idxtest], pred, k)
+        eval_and_store!(res, status[idxtest], pred, k, idxtest)
 
         k += 1
     end

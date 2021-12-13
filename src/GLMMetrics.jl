@@ -137,7 +137,7 @@ end
 RRI(nfold::Integer, nret::Integer) = RRI(fill(NaN, nfold), fill(NaN, nret))
 
 # for RRI, larger values are better
-function eval_and_store!(r::RRI, y::Vector{Bool}, yp::Vector{Float64}, k::Integer, kspk::Vector{<:Inter})
+function eval_and_store!(r::RRI, y::Vector{Bool}, yp::Vector{Float64}, k::Integer, kspk::Vector{<:Integer})
     # divide by log(2) so our units are bits-per-event
     r.x[k] = (RelayUtils.binomial_lli_turbo(yp, y) - RelayUtils.binomial_lli(y)) / length(y) / log(2)
     r.pred[kspk] .= yp

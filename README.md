@@ -57,4 +57,4 @@ plot(get_coef(result, :retina))
 
 See also:
 * [PairsDB.jl](https://github.com/scottiealexander/PairsDB.jl.git)
-* [relayglm_paper] https://github.com/scottiealexander/relayglm_paper
+* [relayglm_paper](https://github.com/scottiealexander/relayglm_paper)

@@ -1,6 +1,6 @@
 # RelayGLM.jl
 
-A Julia package for fitting GLM models to data from pairs of synaptically connected neurons in order to predict which pre-synaptic spikes were relayed (i.e. elicited a spike in the post-synaptic neuron).
+A Julia package for fitting GLM models to data from pairs of synaptically connected neurons in order to predict which pre-synaptic spikes were relayed (i.e. elicited a spike in the post-synaptic neuron). This package is heavily used by [this codebase](https://github.com/scottiealexander/relayglm_paper) to create the figures for [this paper](https://www.eneuro.org/content/9/4/ENEURO.0088-22.2022.long).
 
 ## Install
 
@@ -55,4 +55,6 @@ plot(get_coef(result, :retina))
 
 ```
 
-See also: [PairsDB.jl](https://github.com/scottiealexander/PairsDB.jl.git)
+See also:
+* [PairsDB.jl](https://github.com/scottiealexander/PairsDB.jl.git)
+* [relayglm_paper] https://github.com/scottiealexander/relayglm_paper
